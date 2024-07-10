@@ -1,41 +1,15 @@
 const express = require("express");
-const path = require("path");
-const fs = require("fs");
+const { readData, writeData } = require("../services/dataService");
+const router = express.Router();
+const Joi = require("joi");
 
-const app = express();
-
-app.use(express.urlencoded({ extended: false }));
-app.use(express.json());
-
-const dataFile = path.join(__dirname, "data.json");
-
-const readData = () =>
-  new Promise((resolve, reject) => {
-    fs.readFile(dataFile, "utf-8", (err, data) => {
-      if (err) {
-        reject(err);
-      } else {
-        resolve(JSON.parse(data));
-      }
-    });
-  });
-
-const writeData = (data) =>
-  new Promise((resolve, reject) => {
-    fs.writeFile(dataFile, JSON.stringify(data, null, 2), "utf-8", (err) => {
-      if (err) {
-        reject(err);
-      } else {
-        resolve();
-      }
-    });
-  });
-
-app.get("/", async (req, res) => {
-  res.json({ status: 200 });
+const itemsSchema = Joi.object({
+  name: Joi.string().min(3).max(30).required(),
+  description: Joi.string().max(255).optional(),
+  price: Joi.number().positive().required()
 });
 
-app.get("/items", async (req, res) => {
+router.get("/", async (req, res) => {
   try {
     const data = await readData();
     res.json(data);
@@ -44,10 +18,15 @@ app.get("/items", async (req, res) => {
   }
 });
 
-app.post("/items", async (req, res) => {
+router.post("/", async (req, res) => {
   try {
+    const { error } = itemsSchema.validate(req.body);
+    if (error) {
+      res.status(400).json({ error: error.details[0].message });
+    }
+
     const data = await readData();
-    const newItem = { id: Date.now(), value: req.body.title };
+    const newItem = { id: Date.now(), ...req.body };
     data.push(newItem);
     await writeData(data);
     res.status(201).json(newItem);
@@ -56,15 +35,20 @@ app.post("/items", async (req, res) => {
   }
 });
 
-app.put("/items/:id", async (req, res) => {
+router.put("/:id", async (req, res) => {
   try {
+    const { error } = itemsSchema.validate(req.body);
+    if (error) {
+      res.status(400).json({ error: error.details[0].message });
+    }
+
     const data = await readData();
     const itemId = parseInt(req.params.id, 10);
     const itemIndex = data.findIndex(item => item.id === itemId);
     if (itemIndex === -1) {
       return res.status(404).json({ error: "Item not found" });
     }
-    data[itemIndex] = { ...data[itemIndex], value: req.body.title };
+    data[itemIndex] = { ...data[itemIndex], ...req.body };
     await writeData(data);
     res.json(data[itemIndex]);
   } catch (err) {
@@ -72,7 +56,7 @@ app.put("/items/:id", async (req, res) => {
   }
 });
 
-app.delete("/items/:id", async (req, res) => {
+router.delete("/:id", async (req, res) => {
   const data = await readData();
   const itemId = parseInt(req.params.id, 10);
   let removedItem = {};
@@ -90,9 +74,4 @@ app.delete("/items/:id", async (req, res) => {
   res.json(removedItem);
 });
 
-const PORT = 3000;
-app.listen(PORT, () => {
-  {
-    console.log(`Server is running on port ${PORT}`);
-  }
-});
+module.exports = router;
