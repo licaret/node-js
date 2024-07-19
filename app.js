@@ -2,6 +2,12 @@ const express = require("express");
 
 const app = express();
 const itemsRouter = require("./routes/items");
+const mongoose = require("mongoose");
+
+const connectionString = 'mongodb+srv://licaretraul:pass@goit.leqjsp1.mongodb.net/?retryWrites=true&w=majority&appName=GoIT';
+mongoose.connect(connectionString, { useNewUrlParser: true, useUnifiedTopology: true })
+  .then(() => console.log("MongoDB connected..."))
+  .catch(err => console.log(err));
 
 app.use(express.urlencoded({ extended: false }));
 app.use(express.json());
