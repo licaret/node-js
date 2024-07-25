@@ -3,24 +3,37 @@ const { readData, writeData } = require("../services/dataService");
 const router = express.Router();
 const Joi = require("joi");
 const Item = require("../models/Items");
+const passport = require("passport");
 
 const itemsSchema = Joi.object({
   name: Joi.string().min(3).max(30).required(),
   description: Joi.string().max(255).optional(),
   price: Joi.number().positive().required(),
-  imageLink: Joi.string().uri()
+  imageLink: Joi.string().uri(),
 });
 
-router.get("/", async (req, res) => {
+const auth = (req, res, next) => {
+  passport.authenticate("jwt", { session: false }, (err, user) => {
+    console.log(user);
+    if (!user || err) {
+      const error = new Error("Unauthorized");
+      error.status = 401;
+      return next(error);
+    }
+    req.user = user;
+    next();
+  })(req, res, next);
+};
+
+router.get("/", auth, async (req, res) => {
   try {
-    // const data = await readData();x
+    // const data = await readData();
     const { priceMin = 0, priceMax = Math.min() } = req.query;
     const data = await Item.find({
-      price:
-        {
-          $gte: priceMin,
-          $lte: priceMax
-        }
+      price: {
+        $gte: priceMin,
+        $lte: priceMax,
+      },
     });
     res.json(data);
   } catch (err) {
@@ -28,7 +41,7 @@ router.get("/", async (req, res) => {
   }
 });
 
-router.post("/", async (req, res) => {
+router.post("/", auth, async (req, res) => {
   try {
     const { error } = itemsSchema.validate(req.body);
     if (error) {
@@ -49,7 +62,7 @@ router.post("/", async (req, res) => {
   }
 });
 
-router.put("/:id", async (req, res) => {
+router.put("/:id", auth, async (req, res) => {
   try {
     const { error } = itemsSchema.validate(req.body);
     if (error) {
@@ -65,7 +78,9 @@ router.put("/:id", async (req, res) => {
     // data[itemIndex] = { ...data[itemIndex], ...req.body };
     // await writeData(data);
 
-    const updatedItem = await Item.findByIdAndUpdate(req.params.id, req.body, { new: true });
+    const updatedItem = await Item.findByIdAndUpdate(req.params.id, req.body, {
+      new: true,
+    });
     if (!updatedItem) {
       res.status(404).json({ error: "Item not found" });
     }
@@ -76,7 +91,7 @@ router.put("/:id", async (req, res) => {
   }
 });
 
-router.delete("/:id", async (req, res) => {
+router.delete("/:id", auth, async (req, res) => {
   // const data = await readData();
   // const itemId = parseInt(req.params.id, 10);
   // let removedItem = {};
