@@ -14,7 +14,6 @@ const itemsSchema = Joi.object({
 
 const auth = (req, res, next) => {
   passport.authenticate("jwt", { session: false }, (err, user) => {
-    console.log(user);
     if (!user || err) {
       const error = new Error("Unauthorized");
       error.status = 401;
@@ -41,11 +40,13 @@ router.get("/", auth, async (req, res) => {
   }
 });
 
-router.post("/", auth, async (req, res) => {
+router.post("/", async (req, res) => {
   try {
     const { error } = itemsSchema.validate(req.body);
+
     if (error) {
       res.status(400).json({ error: error.details[0].message });
+      return;
     }
 
     // const data = await readData();
