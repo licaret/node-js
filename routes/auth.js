@@ -3,12 +3,14 @@ const router = express.Router();
 const Joi = require("joi");
 const User = require("../models/Users");
 const jwt = require("jsonwebtoken");
+const nodemailer = require("nodemailer");
+const { nodemailerConfig } = require("../config/nodemailer");
+
 require("dotenv").config();
 
 router.post("/register", async (req, res) => {
   const { username, email, password } = req.body;
   const user = await User.findOne({ email });
-
   if (user) {
     return res.status(409).json({
       status: "error",
@@ -21,6 +23,18 @@ router.post("/register", async (req, res) => {
     const newUser = new User({ username, email });
     await newUser.setPassword(password);
     await newUser.save();
+
+    const transporter = nodemailer.createTransport(nodemailerConfig);
+    const emailOptions = {
+      from: "goit.fs05@outlook.com",
+      to: email,
+      subject: "Create items app account",
+      html: `<html><body><h1>Hello ${username}!</h1><p>We are glad to have you in our team!</p></body></html>`,
+    };
+
+    const mailResponse = await transporter.sendMail(emailOptions);
+    console.log(mailResponse);
+
     res.status(201).json({
       status: "success",
       code: 201,
@@ -29,6 +43,7 @@ router.post("/register", async (req, res) => {
       },
     });
   } catch (error) {
+    console.error(error);
     res.status(500).json({ error: "Internal Server Error" });
   }
 });
